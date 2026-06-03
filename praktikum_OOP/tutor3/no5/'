@@ -1,0 +1,15 @@
+#include "VaultException.hpp"
+
+VaultException::VaultException(std::string msg) : message(msg) {}
+const char* VaultException::what() const noexcept { return message.c_str(); }
+
+EmptyVaultException::EmptyVaultException() 
+    : VaultException("Error: Vault kosong") {}
+
+FullVaultException::FullVaultException(size_t c) 
+    : VaultException("Error: Vault sudah penuh"), cap(c) {}
+size_t FullVaultException::getCapacity() const { return cap; }
+
+InvalidRelicException::InvalidRelicException(std::string name, std::string cause) 
+    : VaultException("Error: Nama relic tidak valid - " + cause), relicName(name) {}
+std::string InvalidRelicException::getRelicName() const { return relicName; }

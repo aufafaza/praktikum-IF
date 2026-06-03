@@ -1,0 +1,12 @@
+    11
+    1 W1 Excalibur Sword 150 5
+    1 W2 Longbow Bow 80 3
+    1 W3 FireStaff Staff 120 4
+    3 W1
+    5 Sword
+    4
+    8
+    9 Sword 50
+    3 W1
+    6 4
+    7 Sword
