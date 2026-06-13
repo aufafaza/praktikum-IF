@@ -16,7 +16,5 @@ public class CountingSubscriber implements Subscriber {
      * - selain itu return true
      */
     @Override
-    public boolean onData(SensorData data) {
-        return true;
-    }
+    public boolean onData(SensorData data) {} 
 }

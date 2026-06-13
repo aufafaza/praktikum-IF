@@ -22,7 +22,6 @@ public class Dispatcher extends Thread {
      *          topic.unsubscribe(subscriber)
      */
     @Override
-    public void run() {
-        // TODO
-    }
+    public void run() {}
+
 }

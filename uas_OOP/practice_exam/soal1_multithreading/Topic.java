@@ -44,7 +44,7 @@ public class Topic {
      *   notifyAll() untuk membangunkan consumer yang menunggu di take().
      */
     public synchronized void publish(SensorData data) {
-        // TODO
+
     }
 
     /**
@@ -56,7 +56,6 @@ public class Topic {
      *   membangunkan publisher yang menunggu slot kosong di publish().
      */
     public synchronized SensorData take() {
-        // TODO
-        return null;
+
     }
 }

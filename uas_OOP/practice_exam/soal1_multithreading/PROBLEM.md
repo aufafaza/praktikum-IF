@@ -43,6 +43,10 @@ Sinkronisasi antar thread **harus** menggunakan `wait()` / `notify()` /
   lalu panggil `onData()` ke setiap subscriber pada `snapshotSubscribers()`.
   Jika `onData` mengembalikan `false`, panggil `topic.unsubscribe(...)`.
   Berhenti saat menerima poison pill.
+- `Publisher` — **TODO**: `Thread` yang merepresentasikan satu node ROS;
+  punya daftar `value` yang akan di-publish berurutan ke satu topic.
+- `PublisherGroup` — **TODO**: menjalankan banyak `Publisher` secara
+  konkuren lalu menunggu semuanya selesai.
 
 ## Tugas
 
@@ -52,12 +56,17 @@ Sinkronisasi antar thread **harus** menggunakan `wait()` / `notify()` /
 2. Implementasikan `Broker.getOrCreateTopic`.
 3. Implementasikan `Dispatcher.run()`, termasuk logika unsubscribe dinamis.
 4. Implementasikan `AlertSubscriber.onData` dan `CountingSubscriber.onData`.
+5. Implementasikan `Publisher.run()` — publish setiap nilai pada `values`
+   secara berurutan ke topic-nya lewat `broker.publish(...)`.
+6. Implementasikan `PublisherGroup.runAll()` — `start()` semua `Publisher`
+   (agar berjalan konkuren), lalu `join()` semuanya sehingga `runAll()`
+   baru return setelah **semua** publisher selesai.
 
 ## Format input
 
 ```
 SUBSCRIBE <topic> <spec>
-PUBLISH <topic> <value>
+PUBLISHER <topic> <value1,value2,...>
 ...
 END
 ```
@@ -67,7 +76,12 @@ END
 - `ALERT:<threshold>` → `AlertSubscriber(threshold)`
 - `COUNT:<limit>` → `CountingSubscriber(limit)`
 
-> Asumsi: setiap topic yang di-`PUBLISH` sudah punya minimal satu
+Setiap baris `PUBLISHER` membuat satu thread `Publisher` baru yang akan
+mempublish `value1, value2, ...` secara berurutan ke `<topic>`. Semua
+`Publisher` baru benar-benar mulai berjalan (lewat `PublisherGroup.runAll()`)
+**setelah** seluruh input selesai dibaca.
+
+> Asumsi: setiap topic yang punya `PUBLISHER` sudah punya minimal satu
 > `SUBSCRIBE` sebelumnya (sehingga dispatcher-nya sudah berjalan dan buffer
 > tidak akan penuh selamanya).
 
@@ -79,10 +93,8 @@ SUBSCRIBE temperature LOG
 SUBSCRIBE temperature ALERT:40.0
 SUBSCRIBE humidity LOG
 SUBSCRIBE humidity COUNT:1
-PUBLISH temperature 25.0
-PUBLISH temperature 42.0
-PUBLISH humidity 80.0
-PUBLISH humidity 90.0
+PUBLISHER temperature 25.0,42.0
+PUBLISHER humidity 80.0,90.0
 END
 ```
 
@@ -120,3 +132,10 @@ menerima `humidity = 90.0`.)
 - Bagaimana pola Observer terlihat pada `Dispatcher`, `Topic`, dan
   `Subscriber`? Bagian mana yang berperan sebagai *Subject* dan mana sebagai
   *Observer*?
+- Apa yang terjadi jika `PublisherGroup.runAll()` memanggil `join()` segera
+  setelah `start()` pada **setiap** publisher di dalam loop yang sama
+  (`start(); join();` lalu lanjut ke publisher berikutnya), dibandingkan
+  memisahkan menjadi dua loop (`start()` semua, lalu `join()` semua)?
+- Jika ada dua `PUBLISHER` untuk topic yang sama (misalnya dua sensor
+  `temperature`), apakah urutan data yang diterima `Dispatcher` untuk topic
+  itu masih bisa dijamin? Mengapa?

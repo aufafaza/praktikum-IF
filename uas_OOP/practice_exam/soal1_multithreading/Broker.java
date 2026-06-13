@@ -20,8 +20,8 @@ public class Broker {
      * - jika sudah ada, kembalikan yang sudah ada.
      */
     public synchronized Topic getOrCreateTopic(String name) {
-        // TODO
-        return null;
+        
+        return topics.computeIfAbsent(name, n-> new Topic(n, topicCapacity));
     }
 
     public void subscribe(String topicName, Subscriber subscriber) {
