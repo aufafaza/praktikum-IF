@@ -1,11 +1,13 @@
-# Soal 1 — Multithreading & Observer Pattern (ROS-like Topic)
+# Soal 1 — Multithreading & Observer Pattern (ROS-like Broker)
 
 ## Konteks
 
-Kamu akan membuat simulasi sederhana "topic" seperti pada ROS (Robot Operating
-System): satu **Publisher** mengirim data sensor ke sebuah **Topic**, dan
-beberapa **Subscriber** (Observer pattern) menerima notifikasi setiap kali ada
-data baru.
+Kamu akan membuat simulasi sederhana **broker** seperti pada ROS (Robot
+Operating System): broker mengelola banyak **topic** (misalnya
+`"temperature"`, `"humidity"`). Setiap topic punya buffer **terbatas
+(bounded)** dan daftar **Subscriber** (Observer pattern) yang menerima
+notifikasi setiap kali ada data baru di topic tersebut. Satu **Dispatcher**
+thread berjalan per topic.
 
 Sinkronisasi antar thread **harus** menggunakan `wait()` / `notify()` /
 `notifyAll()` di dalam blok/method `synchronized`. **Tidak boleh** menggunakan
@@ -14,63 +16,107 @@ Sinkronisasi antar thread **harus** menggunakan `wait()` / `notify()` /
 
 ## Struktur kelas
 
-- `SensorData` — pesan yang dikirim lewat topic (`type`, `value`). Sebuah
-  `SensorData` dengan `type.equals("END")` dianggap **poison pill** (tanda
-  stream berakhir).
-- `Subscriber` — interface Observer: `void onData(SensorData data)`.
-- `LoggerSubscriber` — sudah lengkap, mencetak setiap data yang masuk.
+- `SensorData` — pesan (`type` = nama topic, `value`). `type.equals("END")`
+  adalah **poison pill** (tanda topic tersebut harus berhenti).
+- `Subscriber` — interface Observer:
+  `boolean onData(SensorData data)`. Return `true` = tetap berlangganan,
+  `false` = **unsubscribe** dirinya sendiri setelah pesan ini.
+- `LoggerSubscriber` — sudah lengkap, selalu mencetak data dan return `true`.
 - `AlertSubscriber` — **TODO**: punya `threshold`, mencetak peringatan jika
-  `value > threshold`.
-- `Topic` — **TODO**: berisi buffer (`Queue<SensorData>`) dan daftar
-  subscriber.
-  - `publish(SensorData data)`: menambahkan data ke buffer lalu
-    membangunkan thread yang menunggu.
-  - `take()`: menunggu (dengan `wait()`) sampai buffer tidak kosong, lalu
-    mengambil dan mengembalikan elemen pertama.
-- `Dispatcher` — **TODO**: thread yang terus-menerus memanggil `topic.take()`
-  lalu memanggil `onData()` ke **setiap** subscriber yang terdaftar (ini bagian
-  Observer-nya: dispatcher = subject yang "menotifikasi" semua observer).
-  Dispatcher harus berhenti ketika menerima poison pill.
+  `value > threshold`, selalu return `true`.
+- `CountingSubscriber` — **TODO**: punya `limit`. Setiap menerima data,
+  hitung berapa kali sudah menerima; setelah mencapai `limit`, cetak pesan
+  unsubscribe dan return `false`.
+- `Topic` — **TODO**: buffer (`Queue<SensorData>`) dengan kapasitas tetap
+  (`capacity`) + daftar subscriber.
+  - `publish(SensorData data)`: jika buffer **penuh**, publisher harus
+    `wait()` sampai ada slot kosong; setelah menambah data, `notifyAll()`.
+  - `take()`: jika buffer **kosong**, consumer harus `wait()` sampai ada
+    data baru; setelah mengambil data, `notifyAll()` (membangunkan
+    publisher yang mungkin menunggu slot kosong).
+  - `snapshotSubscribers()`: kembalikan **salinan** daftar subscriber, agar
+    Dispatcher bisa iterasi dengan aman walau ada `unsubscribe` di tengah
+    iterasi.
+- `Broker` — **TODO**: `Map<String, Topic>` dari nama topic ke `Topic`-nya
+  (lazy-create dengan `getOrCreateTopic`).
+- `Dispatcher` — **TODO**: thread per topic, loop: `take()` dari topic-nya,
+  lalu panggil `onData()` ke setiap subscriber pada `snapshotSubscribers()`.
+  Jika `onData` mengembalikan `false`, panggil `topic.unsubscribe(...)`.
+  Berhenti saat menerima poison pill.
 
 ## Tugas
 
-1. Implementasikan `Topic.publish` dan `Topic.take` dengan benar (hindari
-   *missed signal* dan *busy waiting*).
-2. Implementasikan `Dispatcher.run()`.
-3. Implementasikan `AlertSubscriber.onData`.
-4. Pastikan program berhenti dengan bersih (gunakan `dispatcher.join()`).
+1. Implementasikan `Topic.publish` dan `Topic.take` dengan bounded buffer
+   (dua kondisi `wait`: penuh & kosong) — hindari *missed signal* dan
+   *busy waiting*.
+2. Implementasikan `Broker.getOrCreateTopic`.
+3. Implementasikan `Dispatcher.run()`, termasuk logika unsubscribe dinamis.
+4. Implementasikan `AlertSubscriber.onData` dan `CountingSubscriber.onData`.
 
 ## Format input
 
 ```
-PUBLISH <type> <value>
-PUBLISH <type> <value>
+SUBSCRIBE <topic> <spec>
+PUBLISH <topic> <value>
 ...
 END
 ```
+
+`<spec>` salah satu dari:
+- `LOG` → `LoggerSubscriber`
+- `ALERT:<threshold>` → `AlertSubscriber(threshold)`
+- `COUNT:<limit>` → `CountingSubscriber(limit)`
+
+> Asumsi: setiap topic yang di-`PUBLISH` sudah punya minimal satu
+> `SUBSCRIBE` sebelumnya (sehingga dispatcher-nya sudah berjalan dan buffer
+> tidak akan penuh selamanya).
 
 ## Contoh
 
 Input:
 ```
+SUBSCRIBE temperature LOG
+SUBSCRIBE temperature ALERT:40.0
+SUBSCRIBE humidity LOG
+SUBSCRIBE humidity COUNT:1
 PUBLISH temperature 25.0
 PUBLISH temperature 42.0
 PUBLISH humidity 80.0
+PUBLISH humidity 90.0
 END
 ```
 
-Dengan `AlertSubscriber` ber-threshold `40.0`, output yang diharapkan (urutan
-LOG dan ALERT relatif terhadap urutan publish harus terjaga per subscriber):
+Karena setiap topic punya Dispatcher-nya sendiri, urutan output **antar
+topic** bisa berselang-seling (tidak deterministik). Tapi urutan output
+**dalam satu topic** (sesuai urutan subscribe & publish) harus seperti ini:
 
+Topic `temperature`:
 ```
 [LOG] temperature = 25.0
 [LOG] temperature = 42.0
 [ALERT] temperature = 42.0 exceeds threshold 40.0
-[LOG] humidity = 80.0
 ```
+
+Topic `humidity`:
+```
+[LOG] humidity = 80.0
+[COUNT] humidity = 80.0 (1/1)
+[UNSUB] CountingSubscriber done after 1 messages
+[LOG] humidity = 90.0
+```
+
+(`CountingSubscriber` berhenti setelah pesan pertama, sehingga tidak
+menerima `humidity = 90.0`.)
 
 ## Pertanyaan tambahan (diskusi)
 
-- Mengapa `wait()` harus dipanggil di dalam `while` (bukan `if`)?
-- Apa yang terjadi jika `publish` tidak memanggil `notifyAll()`?
-- Bagaimana pola Observer terlihat pada `Dispatcher` dan daftar `Subscriber`?
+- Mengapa `wait()` harus dipanggil di dalam `while` (bukan `if`), baik di
+  `publish` maupun `take`?
+- Apa yang terjadi jika `Topic.capacity = 1` dan publisher mem-publish lebih
+  cepat daripada Dispatcher memproses? Jelaskan urutan `wait`/`notifyAll`
+  yang terjadi.
+- Mengapa `Dispatcher` perlu mengiterasi `snapshotSubscribers()` (salinan)
+  daripada list subscriber asli secara langsung?
+- Bagaimana pola Observer terlihat pada `Dispatcher`, `Topic`, dan
+  `Subscriber`? Bagian mana yang berperan sebagai *Subject* dan mana sebagai
+  *Observer*?

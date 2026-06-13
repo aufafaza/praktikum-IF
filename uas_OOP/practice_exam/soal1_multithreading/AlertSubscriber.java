@@ -6,8 +6,10 @@ public class AlertSubscriber implements Subscriber {
     }
 
     @Override
-    public void onData(SensorData data) {
+    public boolean onData(SensorData data) {
         // TODO: jika data.value > threshold, cetak:
         // "[ALERT] <type> = <value> exceeds threshold <threshold>"
+        // subscriber ini tidak pernah berhenti -> selalu return true
+        return true;
     }
 }

@@ -1,3 +1,7 @@
 public interface Subscriber {
-    void onData(SensorData data);
+    /**
+     * @return true jika subscriber ingin tetap menerima data berikutnya,
+     *         false jika ingin berhenti (unsubscribe) setelah pesan ini.
+     */
+    boolean onData(SensorData data);
 }
