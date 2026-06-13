@@ -50,6 +50,23 @@ public class Main {
                     System.out.println(library.averageYearByGenre(genre));
                     break;
                 }
+                case "WAITLIST_SIZES": {
+                    System.out.println(library.waitlistSizes());
+                    break;
+                }
+                case "WAITLIST_TITLES": {
+                    System.out.println(library.titlesWithWaitlist());
+                    break;
+                }
+                case "LONGEST_WAITLIST": {
+                    System.out.println(library.longestWaitlistTitle());
+                    break;
+                }
+                case "WAITLIST": {
+                    String title = sc.next();
+                    System.out.println(library.waitlistSnapshot(title));
+                    break;
+                }
                 case "END":
                     sc.close();
                     return;

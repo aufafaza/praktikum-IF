@@ -52,6 +52,23 @@ Sistem peminjaman buku perpustakaan sederhana.
    - Daftar `id` member yang `borrowedCount > getMaxBorrowLimit()`
      (memanfaatkan polimorfisme — setiap subclass punya limit berbeda).
 
+7. **[Stream]** `Map<String, Integer> waitlistSizes()`
+   - Petakan `title -> jumlah anggota di waitlist`-nya, **hanya** untuk
+     title yang waitlist-nya tidak kosong.
+
+8. **[Stream]** `List<String> titlesWithWaitlist()`
+   - Daftar `title` yang waitlist-nya tidak kosong, diurutkan alfabetis.
+
+9. **[Stream]** `String longestWaitlistTitle()`
+   - `title` dengan waitlist terpanjang. Jika ada lebih dari satu title
+     dengan panjang sama, pilih yang alfabetis pertama. Jika semua waitlist
+     kosong, kembalikan `"NONE"`.
+
+10. **[Stream]** `List<String> waitlistSnapshot(String title)`
+    - Kembalikan **salinan** urutan `memberId` pada waitlist `title`
+      tersebut (gunakan `queue.stream()...collect(...)` — jangan `poll()`,
+      karena queue aslinya tidak boleh berubah).
+
 ## Format input
 
 ```
@@ -62,6 +79,10 @@ RETURN title
 GENRE_STATS
 TOP_GENRES n
 AVG_YEAR genre
+WAITLIST_SIZES
+WAITLIST_TITLES
+LONGEST_WAITLIST
+WAITLIST title
 END
 ```
 
@@ -77,12 +98,19 @@ ADD_BOOK Foundation|Isaac_Asimov|USA|SciFi|1951
 ADD_BOOK Hobbit|JRR_Tolkien|UK|Fantasy|1937
 ADD_MEMBER m1|Alice|REGULAR
 ADD_MEMBER m2|Bob|REGULAR
+ADD_MEMBER m3|Carol|PREMIUM
 BORROW Dune|m1
 BORROW Dune|m2
-RETURN Dune
+BORROW Dune|m3
 GENRE_STATS
 TOP_GENRES 1
 AVG_YEAR SciFi
+WAITLIST_SIZES
+WAITLIST_TITLES
+LONGEST_WAITLIST
+WAITLIST Dune
+RETURN Dune
+WAITLIST Dune
 END
 ```
 
@@ -90,11 +118,17 @@ Output (kira-kira):
 ```
 BORROWED Dune by m1
 WAITLISTED m2 for Dune
-RETURNED Dune
-BORROWED Dune by m2
+WAITLISTED m3 for Dune
 {SciFi=2, Fantasy=1}
 [SciFi]
 1958.0
+{Dune=2}
+[Dune]
+Dune
+[m2, m3]
+RETURNED Dune
+BORROWED Dune by m2
+[m3]
 ```
 
 ## Pertanyaan tambahan (diskusi)
@@ -103,3 +137,7 @@ BORROWED Dune by m2
   `RegularMember extends Member` adalah *inheritance*?
 - Apa keuntungan `getMaxBorrowLimit()` bersifat abstrak/polymorphic
   dibandingkan menyimpan limit sebagai field biasa di `Library`?
+- Mengapa `waitlistSnapshot` harus menggunakan `queue.stream()...collect(...)`
+  daripada `poll()` berulang? Apa yang akan rusak jika memakai `poll()`?
+- Pada `longestWaitlistTitle`, bagaimana cara memastikan title yang dipilih
+  saat seri adalah yang alfabetis pertama menggunakan `Comparator`?
