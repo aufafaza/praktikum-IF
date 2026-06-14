@@ -1,0 +1,9 @@
+OK
+OK
+Display TA: Suhu 20.0
+Display HA: Kelembaban 50.0%
+OK
+Station: Suhu=20.0, Kelembaban=50.0%, Observer=1
+Display HA: Kelembaban 65.0%
+OK
+Station: Suhu=25.0, Kelembaban=65.0%, Observer=0
